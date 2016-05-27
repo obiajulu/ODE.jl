@@ -17,6 +17,8 @@ export ode23s
 export ode4s
 
 ## complete function export list: see runtests.jl
+include("list_of_solvers.jl")
+export all_solvers
 
 ###############################################################################
 ## Coefficient Tableaus
