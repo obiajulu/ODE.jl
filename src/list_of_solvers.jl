@@ -10,8 +10,7 @@ nonstiff_fixedstep= [
 
 ## Non-stiff fixed step solvers
 nonstiff_adaptive=[
-           # adaptive
-#           ODE.ode21, # this fails on Travis with 0.4?! TODO revert once fixed.
+#          ODE.ode21, # this fails on Travis with 0.4?! TODO revert once fixed.
            ODE.ode23,
            ODE.ode45_dp,
            ODE.ode45_fe,
@@ -19,7 +18,6 @@ nonstiff_adaptive=[
            ]
 # Stiff fixed-step solvers
 stiff_fixedstep=[
-
            ODE.ode4s_s,
            ODE.ode4s_kr
            ]
