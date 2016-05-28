@@ -6,19 +6,21 @@ module ODE
 using Polynomials
 using Compat
 
-## minimal function export list
-# adaptive non-stiff:
-export ode23, ode45, ode78
-# non-adaptive non-stiff:
-export ode4, ode4ms
-# adaptive stiff:
-export ode23s
-# non-adaptive stiff:
-export ode4s
+minimal_solvers_export = false
+if minimal_solvers_export
+    ## minimal function export list
+    # adaptive non-stiff:
+    export ode23, ode45, ode78
+    # non-adaptive non-stiff:
+    export ode4, ode4ms
+    # adaptive stiff:
+    export ode23s
+    # non-adaptive stiff:
+    export ode4s
+end
 
-## complete function export list: see runtests.jl
-include("list_of_solvers.jl")
-export all_solvers
+
+## complete function export list: see runtests.jl and in list_of_solvers
 
 ###############################################################################
 ## Coefficient Tableaus
@@ -426,5 +428,10 @@ const ms_coefficients4 = [ 1      0      0     0
                           5/12  -4/3  23/12 0
                           -9/24   37/24 -59/24 55/24]
 
+## Uncomment two following lines to export all implemented solvers
+if !minimal_solvers_export
+    include("list_of_solvers.jl")
+    export all_solvers
+end
 
 end # module ODE

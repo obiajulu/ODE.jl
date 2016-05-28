@@ -12,6 +12,7 @@ nonstiff_fixedstep= [
 nonstiff_adaptive=[
 #          ODE.ode21, # this fails on Travis with 0.4?! TODO revert once fixed.
            ODE.ode23,
+           ODE.ode45,
            ODE.ode45_dp,
            ODE.ode45_fe,
            ODE.ode78
@@ -32,3 +33,13 @@ all_solvers = [nonstiff_fixedstep,
               stiff_fixedstep,
               stiff_adaptive
               ]
+
+## minimal function export list
+minimal_solvers = []# adaptive non-stiff:
+              #export ode23, ode45, ode78
+              # non-adaptive non-stiff:
+              #export ode4, ode4ms
+              # adaptive stiff:
+              #export ode23s
+              # non-adaptive stiff:
+              #export ode4s

@@ -45,19 +45,19 @@ ODE.isoutofdomain(y::CompSol) = any(isnan, vcat(y.rho[:], y.x, y.p))
 
 
 ################################################################################
- 
+
 # define RHSs of differential equations
 # delta, V and g are parameters
 function rhs(t, y, delta, V, g)
   H = [[-delta/2 V]; [V delta/2]]
- 
+
   rho_dot = -im*H*y.rho + im*y.rho*H
   x_dot = y.p
   p_dot = -y.x
- 
+
   return CompSol( rho_dot, x_dot, p_dot)
 end
- 
+
 # inital conditons
 rho0 = zeros(2,2);
 rho0[1,1]=1.;
@@ -68,7 +68,8 @@ endt = 2*pi;
 
 t,y1 = ODE.ode45((t,y)->rhs(t, y, delta0, V0, g0), y0, [0., endt]) # used as reference
 print("Testing interface for scalar-like state... ")
-for solver in solvers
+#for solver in solvers
+for solver in ODE.all_solvers
     # these only work with some Array-like interface defined:
     if solver in [ODE.ode23s, ODE.ode4s_s, ODE.ode4s_kr]
         continue
