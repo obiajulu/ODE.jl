@@ -31,7 +31,7 @@ stiff_adaptive = [
 all_solvers = [nonstiff_fixedstep,
               nonstiff_adaptive,
               stiff_fixedstep,
-              stiff_adaptive
+              stiff_adaptive,
               ]
 
 ## minimal function export list

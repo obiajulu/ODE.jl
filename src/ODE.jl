@@ -431,7 +431,7 @@ const ms_coefficients4 = [ 1      0      0     0
 ## Uncomment two following lines to export all implemented solvers
 if !minimal_solvers_export
     include("list_of_solvers.jl")
-    export all_solvers
+    export all_solvers, nonstiff_adaptive, nonstiff_fixedstep, stiff_adaptive, stiff_fixedstep
 end
 
 end # module ODE

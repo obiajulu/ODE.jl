@@ -25,7 +25,7 @@ solvers = [
            ODE.ode4s_kr,
            # adaptive
            ODE.ode23s]
-
+println(all_solvers)
 #for solver in solvers
 for solver in vec(all_solvers)
     println("using $solver")
