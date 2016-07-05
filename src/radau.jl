@@ -7,8 +7,7 @@
     (6) status()
 =#
 
-function radau(f, y0, tspan, order::Integer)
-
+function radau(f, y0, tspan, order ::Integer = 5)
     #= setup
         state.t, state.f(t)
     =#
