@@ -26,4 +26,11 @@ function radau(f, y0, tspan, order ::Integer = 5)
     end
 end
 
-function done(arg..)
+function done(st)
+    unwrap st: dt, t
+    if dt < minstep || t = tfinal
+        return true
+    else
+        return false
+    end
+end
