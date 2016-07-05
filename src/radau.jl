@@ -43,7 +43,7 @@ function radau(f, y0, tspan, order ::Integer = 5)
     step = 1
     finished = false
     ## intialize state
-    st =  RadauState(h,
+    st =  RadauState{T,Y}(h,
                    t, y, dy,
                    tpre, ypre, dypre,
                    step, finished)
