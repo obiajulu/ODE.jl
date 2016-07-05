@@ -27,7 +27,7 @@ function radau(f, y0, tspan, order ::Integer = 5)
 end
 
 function done(st)
-    unwrap st: dt, t
+    @unpack st: dt, t, tfinal
     if dt < minstep || t = tfinal
         return true
     else
