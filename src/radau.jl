@@ -10,7 +10,6 @@
 ###########################################
 # Tableaus for implicit Runge-Kutta methods
 ###########################################
-
 immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
     order::Integer # the order of the method
     a::Matrix{T}
@@ -60,6 +59,9 @@ const bt_radau9 = TableauRKImplicit(:radau9,9, Rational{Int64},
                                 [0, 1])
 
 
+###########################################
+# State for Radau Solver
+###########################################
 type RadauState{T,Y}
     h::T     # (proposed) next time step
 
@@ -74,10 +76,15 @@ type RadauState{T,Y}
     step::Int # current step number
     finished::Bool # true if last step was taken
 
+    btab::TableauRKImplicit # tableau according to stage number
+
     # work arrays
 end
 
-function radau(f, y0, tspan, stageNum ::Integer = 5)
+###########################################
+# Radau Solver
+###########################################
+function ode_radau(f, y0, tspan, stageNum ::Integer = 5)
     # Set up
     T = eltype(tspan)
     Y = typeof(y0)
@@ -88,6 +95,17 @@ function radau(f, y0, tspan, stageNum ::Integer = 5)
     t = ode.tspan[1]
     y = deepcopy(y0)
     dy = f(t, y)
+    # get right tableau for stage number
+    if stageNum ==3
+        btab = bt_radau3
+    elseif stageNum ==5
+        btab = bt_radau5
+    elseif stageNum == 9
+        btab = bt_radau9
+    else
+        btab = constRadauTableau(stageNum)
+    end
+
     ## previous data set to null to begin
     tpre = NaN
     ypre = zeros(y0)
@@ -101,7 +119,8 @@ function radau(f, y0, tspan, stageNum ::Integer = 5)
     st =  RadauState{T,Y}(h,
                    t, y, dy,
                    tpre, ypre, dypre,
-                   step, finished)
+                   step, finished,
+                   btab)
 
     # Time stepping loop
     while !done()
@@ -118,7 +137,10 @@ function radau(f, y0, tspan, stageNum ::Integer = 5)
     end
 end
 
-function raduaTable(stageNum)
+###########################################
+# iterator like helper functions
+###########################################
+function constRadauTableau(stageNum)
     # Calculate c_i, which are the zeros of
     #              s-1
     #            d       s-1        s
@@ -214,14 +236,19 @@ end
 
 function ordercontrol!(st)
     @unpack st:W, step, order
-    
+
     if step < 10
         # update state
         st.order = 5
-        
+
     else
         θk = norm(W[  ]) / norm(W[  ])
         θk_1 = norm(W[  ]) / norm(W[  ])
 
         Φ_k = √(θk * θk_1)
     end
+
+end
+###########################################
+# Other help functions
+###########################################
