@@ -10,11 +10,7 @@
 ###########################################
 # Tableaus for implicit Runge-Kutta methods
 ###########################################
-<<<<<<< 3283b8efadd4ca24e8aaedb3b49af763b3ccd492
-=======
 using Polynomials
-
->>>>>>> Add using Polynomials
 immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
     order::Integer # the order of the method
     a::Matrix{T}
@@ -161,7 +157,7 @@ function constRadauTableau(stageNum)
     C = Polynomials.roots(poly)
 
     # Calculate b_i
-    
+
     # Construct a matrix C_meta to calculate B
     C_meta = zeros(stageNum, stageNum)
     for i = 1:stageNum
@@ -171,8 +167,8 @@ function constRadauTableau(stageNum)
     # Construct a matrix 1 / stageNum
     B
     for i = 1:stageNum
-        B_meta = 
-    B = inv( C_meta ) * 
+        B_meta =
+    B = inv( C_meta ) *
     # Calculate a_ij
     a
     return TableauRKImplicit(order, A, B, C)
