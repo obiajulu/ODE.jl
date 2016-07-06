@@ -11,6 +11,7 @@
 # Tableaus for implicit Runge-Kutta methods
 ###########################################
 using Polynomials
+
 immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
     order::Integer # the order of the method
     a::Matrix{T}
@@ -141,38 +142,6 @@ end
 ###########################################
 # iterator like helper functions
 ###########################################
-function constRadauTableau(stageNum)
-    # Calculate c_i, which are the zeros of
-    #              s-1
-    #            d       s-1        s
-    #           ---    (x    * (x-1)  )
-    #              s-1
-    #           dx
-    roots = zeros(stageNum-1)
-    append!(roots, [1 for i= 1:stageNum])
-    poly = Polynomials.poly([roots])
-    for i = 1 : stageNum-1
-        poly = Polynomials.polyder(poly)
-    end
-    C = Polynomials.roots(poly)
-
-    # Calculate b_i
-
-    # Construct a matrix C_meta to calculate B
-    C_meta = zeros(stageNum, stageNum)
-    for i = 1:stageNum
-        C_meta[i, :] = C .^ (i - 1)
-    end
-
-    # Construct a matrix 1 / stageNum
-    B
-    for i = 1:stageNum
-        B_meta =
-    B = inv( C_meta ) *
-    # Calculate a_ij
-    a
-    return TableauRKImplicit(order, A, B, C)
-end
 
 function done(st)
     @unpack st: h, t, tfinal
@@ -264,3 +233,47 @@ end
 ###########################################
 # Other help functions
 ###########################################
+
+function constRadauTableau(stageNum)
+    # Calculate c_i, which are the zeros of
+    #              s-1
+    #            d       s-1        s
+    #           ---    (x    * (x-1)  )
+    #              s-1
+    #           dx
+    roots = zeros(stageNum-1)
+    append!(roots, [1 for i= 1:stageNum])
+    poly = Polynomials.poly([roots])
+    for i = 1 : stageNum-1
+        poly = Polynomials.polyder(poly)
+    end
+    C = Polynomials.roots(poly)
+
+    ################# Calculate b_i #################
+    
+    # Construct a matrix C_meta to calculate B
+    C_meta = zeros(stageNum, stageNum)
+    for i = 1:stageNum
+        C_meta[i, :] = C .^ (i - 1)
+    end
+
+    # Construct a matrix 1 / stageNum
+    B_meta = zeros(1, stageNum)
+    for i = 1:stageNum
+        B_meta[1, i] = 1 / stageNum
+    end
+
+    # Calculate b_i
+    C_big = inv( C_meta )
+    B = C_big * B_meta
+
+    ################# Calculate a_ij ################
+    
+    # Construct matrix A
+    A = zeros(stageNum, stageNum)
+
+    for i = 1:stageNum
+        A[i, :] = C_big * C[i] * B_meta
+    end
+    return TableauRKImplicit(order, A, B, C)
+end
