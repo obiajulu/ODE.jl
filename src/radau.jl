@@ -12,7 +12,7 @@
 ###########################################
 
 immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
-    order::(@compat(Tuple{Vararg{Int}})) # the order of the methods
+    order::Integer # the order of the method
     a::Matrix{T}
     # one or several row vectors.  First row is used for the step,
     # second for error calc.
@@ -30,30 +30,30 @@ immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
     end
 end
 
-function TableauRKImplicit{T}(name::Symbol, order::(@compat(Tuple{Vararg{Int}})),
+function TableauRKImplicit{T}(name::Symbol, order::Integer,
                    a::Matrix{T}, b::Matrix{T}, c::Vector{T})
     TableauRKImplicit{name,length(c),T}(order, a, b, c)
 end
-function TableauRKImplicit(name::Symbol, order::(@compat(Tuple{Vararg{Int}})), T::Type,
+function TableauRKImplicit(name::Symbol, order::Integer, T::Type,
                    a::Matrix, b::Matrix, c::Vector)
     TableauRKImplicit{name,length(c),T}(order, convert(Matrix{T},a),
                                         convert(Matrix{T},b), convert(Vector{T},c) )
 end
 
 ## Tableaus for implicit RK methods
-const bt_radau3 = TableauRKImplicit(:radau3,(2,), Rational{Int64},
+const bt_radau3 = TableauRKImplicit(:radau3,3, Rational{Int64},
                                   [0  0
                                    1  0],
                                   [1//2, 1//2]',
                                   [0, 1])
 
-const bt_radau5 = TableauRKImplicit(:radau5,(2,), Rational{Int64},
+const bt_radau5 = TableauRKImplicit(:radau5,5, Rational{Int64},
                                 [0  0
                                  1  0],
                                 [1//2, 1//2]',
                                 [0, 1])
 
-const bt_radau9 = TableauRKImplicit(:radau9,(2,), Rational{Int64},
+const bt_radau9 = TableauRKImplicit(:radau9,9, Rational{Int64},
                                 [0  0
                                  1  0],
                                 [1//2, 1//2]',
@@ -131,14 +131,13 @@ function raduaTable(stageNum)
     for i = 1 : stageNum-1
         poly = Polynomials.polyder(poly)
     end
-    c = Polynomials.roots(poly)
-
+    @show Polynomials.roots(poly)
 
     # Calculate b_i
     b
     # Calculate a_ij
     a
-
+    return TableauRKImplicit(order,a,b,c)
 end
 
 function done(st)
