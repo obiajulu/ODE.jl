@@ -158,13 +158,24 @@ function constRadauTableau(stageNum)
     for i = 1 : stageNum-1
         poly = Polynomials.polyder(poly)
     end
-    @show Polynomials.roots(poly)
+    C = Polynomials.roots(poly)
 
     # Calculate b_i
-    b
+    
+    # Construct a matrix C_meta to calculate B
+    C_meta = zeros(stageNum, stageNum)
+    for i = 1:stageNum
+        C_meta[i, :] = C .^ (i - 1)
+    end
+
+    # Construct a matrix 1 / stageNum
+    B
+    for i = 1:stageNum
+        B_meta = 
+    B = inv( C_meta ) * 
     # Calculate a_ij
     a
-    return TableauRKImplicit(order,a,b,c)
+    return TableauRKImplicit(order, A, B, C)
 end
 
 function done(st)
