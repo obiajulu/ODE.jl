@@ -7,7 +7,6 @@
     (6) status()
 =#
 
-<<<<<<< 05b0e332ba8054e68019fd93b1815b48e5485d87
 type RadauState{T,Y}
     h::T     # (proposed) next time step
 
@@ -26,12 +25,6 @@ type RadauState{T,Y}
 end
 
 function radau(f, y0, tspan, order ::Integer = 5)
-=======
-function radau(f, y0, tspan, order::Integer = 5)
-    #= setup
-        state.t, state.f(t)
-    =#
->>>>>>> add basic errorcontrol! function
 
     # Set up
     T = eltype(tspan)
@@ -56,7 +49,7 @@ function radau(f, y0, tspan, order::Integer = 5)
     b
     # Calculate a_ij
     a
-    
+
     ## intialize state
     st =  RadauState{T,Y}(h,
                    t, y, dy,
@@ -87,7 +80,6 @@ function done(st)
     end
 end
 
-<<<<<<< 05b0e332ba8054e68019fd93b1815b48e5485d87
 function trialstep!(st)
     @unpack st: h, t, tfinal
     # Calculate simplified Jacobian
@@ -129,7 +121,7 @@ function trialstep!(st)
     #
 
 end
-=======
+
 function errorcontrol!(st)
     @unpack st:M, h, A, J, tpre, ypre, b̂, b, c, g, order_number, fac
     γ0 = filter(λ -> imag(λ)==0, eig(inv(A)))
@@ -142,4 +134,3 @@ function errorcontrol!(st)
     err = norm( inv(M - h * λ * J) * (yhat_y) )
 
     hnew = fac * h * err_norm^(-1/4)
->>>>>>> add basic errorcontrol! function
