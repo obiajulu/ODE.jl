@@ -25,7 +25,6 @@ type RadauState{T,Y}
 end
 
 function radau(f, y0, tspan, order ::Integer = 5)
-
     # Set up
     T = eltype(tspan)
     Y = typeof(y0)
