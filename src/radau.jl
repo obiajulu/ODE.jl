@@ -10,6 +10,11 @@
 ###########################################
 # Tableaus for implicit Runge-Kutta methods
 ###########################################
+<<<<<<< 3283b8efadd4ca24e8aaedb3b49af763b3ccd492
+=======
+using Polynomials
+
+>>>>>>> Add using Polynomials
 immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
     order::Integer # the order of the method
     a::Matrix{T}
