@@ -133,3 +133,9 @@ function errorcontrol!(st)
     err = norm( inv(M - h * λ * J) * (yhat_y) )
 
     hnew = fac * h * err_norm^(-1/4)
+
+    # Update state
+    st.hnew = hnew 
+
+    return err, Nothing, st
+end
