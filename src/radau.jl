@@ -212,3 +212,17 @@ function errorcontrol!(st)
 
     return err, Nothing, st
 end
+
+function ordercontrol!(st)
+    @unpack st:W, step, order
+    
+    if step < 10
+        # update state
+        st.order = 5
+        
+    else
+        θk = norm(W[  ]) / norm(W[  ])
+        θk_1 = norm(W[  ]) / norm(W[  ])
+
+        Φ_k = √(θk * θk_1)
+    end
