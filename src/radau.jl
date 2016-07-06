@@ -7,6 +7,59 @@
     (6) status()
 =#
 
+###########################################
+# Tableaus for implicit Runge-Kutta methods
+###########################################
+
+immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
+    order::(@compat(Tuple{Vararg{Int}})) # the order of the methods
+    a::Matrix{T}
+    # one or several row vectors.  First row is used for the step,
+    # second for error calc.
+    b::Matrix{T}
+    c::Vector{T}
+    function TableauRKImplicit(order,a,b,c)
+        @assert isa(S,Integer)
+        @assert isa(Name,Symbol)
+        @assert c[1]==0
+        @assert istril(a)
+        @assert S==length(c)==size(a,1)==size(a,2)==size(b,2)
+        @assert size(b,1)==length(order)
+        @assert norm(sum(a,2)-c'',Inf)<1e-10 # consistency.
+        new(order,a,b,c)
+    end
+end
+
+function TableauRKImplicit{T}(name::Symbol, order::(@compat(Tuple{Vararg{Int}})),
+                   a::Matrix{T}, b::Matrix{T}, c::Vector{T})
+    TableauRKImplicit{name,length(c),T}(order, a, b, c)
+end
+function TableauRKImplicit(name::Symbol, order::(@compat(Tuple{Vararg{Int}})), T::Type,
+                   a::Matrix, b::Matrix, c::Vector)
+    TableauRKImplicit{name,length(c),T}(order, convert(Matrix{T},a),
+                                        convert(Matrix{T},b), convert(Vector{T},c) )
+end
+
+## Tableaus for implicit RK methods
+const bt_radau3 = TableauRKImplicit(:radau3,(2,), Rational{Int64},
+                                  [0  0
+                                   1  0],
+                                  [1//2, 1//2]',
+                                  [0, 1])
+
+const bt_radau5 = TableauRKImplicit(:radau5,(2,), Rational{Int64},
+                                [0  0
+                                 1  0],
+                                [1//2, 1//2]',
+                                [0, 1])
+
+const bt_radau9 = TableauRKImplicit(:radau9,(2,), Rational{Int64},
+                                [0  0
+                                 1  0],
+                                [1//2, 1//2]',
+                                [0, 1])
+
+
 type RadauState{T,Y}
     h::T     # (proposed) next time step
 
@@ -24,7 +77,7 @@ type RadauState{T,Y}
     # work arrays
 end
 
-function radau(f, y0, tspan, order ::Integer = 5)
+function radau(f, y0, tspan, stageNum ::Integer = 5)
     # Set up
     T = eltype(tspan)
     Y = typeof(y0)
@@ -40,14 +93,9 @@ function radau(f, y0, tspan, order ::Integer = 5)
     ypre = zeros(y0)
     dypre = zeros(y0)
     step = 1
+    stageNum = stageNum
     finished = false
 
-    # Calculate c_i
-    c
-    # Calculate b_i
-    b
-    # Calculate a_ij
-    a
 
     ## intialize state
     st =  RadauState{T,Y}(h,
@@ -68,6 +116,29 @@ function radau(f, y0, tspan, order ::Integer = 5)
 
         return = status()
     end
+end
+
+function raduaTable(stageNum)
+    # Calculate c_i, which are the zeros of
+    #              s-1
+    #            d       s-1        s
+    #           ---    (x    * (x-1)  )
+    #              s-1
+    #           dx
+    roots = zeros(stageNum-1)
+    append!(roots, [1 for i= 1:stageNum])
+    poly = Polynomials.poly([roots])
+    for i = 1 : stageNum-1
+        poly = Polynomials.polyder(poly)
+    end
+    c = Polynomials.roots(poly)
+
+
+    # Calculate b_i
+    b
+    # Calculate a_ij
+    a
+
 end
 
 function done(st)
@@ -114,6 +185,8 @@ function trialstep!(st)
     #
     #
 
+    # Stop condition for the Netwon iteration
+
     # Once Netwon method converges after some m steps, estimated next step size
     #
     #   y = ypre + h ∑b_i*k_i^{m}
@@ -135,7 +208,7 @@ function errorcontrol!(st)
     hnew = fac * h * err_norm^(-1/4)
 
     # Update state
-    st.hnew = hnew 
+    st.hnew = hnew
 
     return err, Nothing, st
 end
