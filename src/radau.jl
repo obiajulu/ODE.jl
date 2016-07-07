@@ -241,9 +241,9 @@ function constRadauTableau(stageNum)
     #           ---    (x    * (x-1)  )
     #              s-1
     #           dx
-    roots = zeros(stageNum-1)
+    roots = Array(Float64, stageNum - 1)
     append!(roots, [1 for i= 1:stageNum])
-    poly = Polynomials.poly([roots])
+    poly = Polynomials.poly([roots;])
     for i = 1 : stageNum-1
         poly = Polynomials.polyder(poly)
     end
@@ -252,15 +252,15 @@ function constRadauTableau(stageNum)
     ################# Calculate b_i #################
     
     # Construct a matrix C_meta to calculate B
-    C_meta = zeros(stageNum, stageNum)
+    C_meta = Array(Float64, stageNum, stageNum)
     for i = 1:stageNum
         C_meta[i, :] = C .^ (i - 1)
     end
 
     # Construct a matrix 1 / stageNum
-    B_meta = zeros(1, stageNum)
+    B_meta = Array(Float64, stageNum, 1)
     for i = 1:stageNum
-        B_meta[1, i] = 1 / stageNum
+        B_meta[i, 1] = 1 / i
     end
 
     # Calculate b_i
@@ -270,10 +270,20 @@ function constRadauTableau(stageNum)
     ################# Calculate a_ij ################
     
     # Construct matrix A
-    A = zeros(stageNum, stageNum)
+    A = Array(Float64, stageNum, stageNum)
 
+    # Construct matrix A_meta 
+    A_meta = Array(Float64, stageNum, stageNum)
     for i = 1:stageNum
-        A[i, :] = C_big * C[i] * B_meta
+        for j = 1:stageNum
+            A_meta[i,j] = B_meta[i] * C[j]^i
+        end
     end
+
+    # Calculate a_ij
+    for i = 1:stageNum
+        A[i,:] = C_big * A_meta[:,i]
+    end
+
     return TableauRKImplicit(order, A, B, C)
 end
