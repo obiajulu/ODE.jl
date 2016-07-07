@@ -11,6 +11,7 @@
 # Tableaus for implicit Runge-Kutta methods
 ###########################################
 using Polynomials
+using ForwardDiff
 
 immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
     order::Integer # the order of the method
@@ -43,16 +44,16 @@ end
 
 ## Tableaus for implicit RK methods
 const bt_radau3 = TableauRKImplicit(:radau3,3, Rational{Int64},
-                                  [0  0
-                                   1  0],
-                                  [1//2, 1//2]',
-                                  [0, 1])
+                                  [5//12  -1//12
+                                   3//4    1//4],
+                                  [3//4, 1//4]',
+                                  [1//3, 1])
 
 const bt_radau5 = TableauRKImplicit(:radau5,5, Rational{Int64},
-                                [0  0
-                                 1  0],
-                                [1//2, 1//2]',
-                                [0, 1])
+                                [11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75
+                                11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75
+                                11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75]',
+                                [2//5- sqrt(6)/10, 1])
 
 const bt_radau9 = TableauRKImplicit(:radau9,9, Rational{Int64},
                                 [0  0
@@ -152,48 +153,105 @@ function done(st)
     end
 end
 
+"trial step for ODE with mass matrix"
 function trialstep!(st)
-    @unpack st: h, t, tfinal
-    # Calculate simplified Jacobian
+    @unpack st: h, t,y, tfinal
+
+
+    # Calculate simplified Jacobian if My' = f(t,y)
     #     _                                             _
     #    |M - h*a[11]*h*f(tn,yn) ... -h*a[1s]*f(tn,yn)   |
-    # J= |         ⋮              ⋱           ⋮           |
+    # G= |         ⋮              ⋱           ⋮           |
     #    | - h*a[1s]*h*f(tn,yn) ...   M-h*a[ss]*f(tn,yn) |
     #    |_                                             _|
     #
+    g(z) = f(t,z)
+    J = ForwardDiff.jacobian(g, y)
+    I = eye(stageNum,stageNum)
+
+    #AoplusJ = [btab.a[i,j]*J for i=1:stageNum, j=1:stageNum]
+    AoplusJ=zeros(stageNum*dof,stageNum*dof)
+    for i=1:stageNum
+        for j = 1:stageNum
+            for l = 1:dof
+                for k = 1:dof
+                    AoplusJ[(i-1)*stageNum+l,(j-1)*stageNum+k] =btab.a[i,j]*J[l,k]
+                end
+            end
+        end
+    end
+
+    AoplusI = [btab.a[i,j]*I for i=1:stageNum, j=1:stageNum]
+    AoplusI2=zeros(stageNum*dof,stageNum*dof)
+    for i=1:stageNum
+        for j = 1:stageNum
+            for l = 1:dof
+                for k = 1:dof
+                    AoplusI2[(i-1)*stageNum+l,(j-1)*stageNum+k] =btab.a[i,j]*I[l,k]
+                end
+            end
+        end
+    end
+
+    #IoplusM = [I[i,j]*M for i=1:stageNum, j=1:stageNum]
+    IoplusM=zeros(stageNum*dof,stageNum*dof)
+    for i=1:stageNum
+        for j = 1:stageNum
+            for l = 1:dof
+                for k = 1:dof
+                    IoplusM[(i-1)*stageNum+l,(j-1)*stageNum+k] =I[i,j]*M[l,k]
+                end
+            end
+        end
+    end
+
+    G =  IoplusM-h*AoplusJ
+    Ginv = inv(G)
 
     # Use Netwon interation
     #
-    #   ⃗k^(i+1) = ⃗k ^ (i) - J^{-1}*G(⃗k)
-    # where
-    #           /       \
-    #           |k_1^(i)|
-    #   ⃗k^(i) = |   ⋮   |
-    #           |k_s^(i)|
-    #           \       /
-    #
-    #   and
-    #
-    #           /            \
-    #          |f_1(k_1,…,k_s)|
-    #  G(k) =  |      ⋮       |  = 0
-    #          |f_s(k_1,…,k_s)|
-    #           \            /
-    #
-    #
-    #   and
-    #
-    #  f_i = k_i - f(t_n + c_ih, y_n + h*a_11*k1 + ⋯ + h*a_1s*k_s)
-    #
-    #
+    #   ⃗z^(k+1) = ⃗z ^ (k) - Δ⃗z^(k)
+    #TODO: use the transformation T^(-1)A^(-1)T = Λ, W^k = (T^-1 ⊕ I)Z^k
+    ## initial variables iteration
+    #TODO: use better initial values for zpre
+    #w = hnew/hpre
+    #zpre = q(w)+ypre-y
+    zpre = zeros(dof)
+    Δzpre
+    κ
 
-    # Stop condition for the Netwon iteration
+    iterate = true
+    count = 0
+    while iterate
+        Δz = reshape(Ginv*[(-zpre + h*AoplusI2*F(f,z,y,t,c,h))...],dof,stageNum)
+        z = zpre + Δz
+
+        # Stop condition for the Netwon iteration
+        if (count >=1)
+            Θ = norm(Δz)/norm(Δzpre)
+            η = Θ/(1-Θ)
+            if η*norm(Δz) <= κ*min(reltol,abstol)
+                iterate = false
+                break
+            end
+        end
+
+        zpre = z
+        Δzpre = Δz
+
+        count+=1
+    end
 
     # Once Netwon method converges after some m steps, estimated next step size
     #
     #   y = ypre + h ∑b_i*k_i^{m}
     #
 
+    d = b*inv(A)
+    ynext = ypre
+    for i = 1 : stageNum
+        ynext += z[i]*d[i]
+    end
 end
 
 function errorcontrol!(st)
@@ -233,7 +291,6 @@ end
 ###########################################
 # Other help functions
 ###########################################
-
 function constRadauTableau(stageNum)
     # Calculate c_i, which are the zeros of
     #              s-1
@@ -250,7 +307,7 @@ function constRadauTableau(stageNum)
     C = Polynomials.roots(poly)
 
     ################# Calculate b_i #################
-    
+
     # Construct a matrix C_meta to calculate B
     C_meta = Array(Float64, stageNum, stageNum)
     for i = 1:stageNum
@@ -268,11 +325,11 @@ function constRadauTableau(stageNum)
     B = C_big * B_meta
 
     ################# Calculate a_ij ################
-    
+
     # Construct matrix A
     A = Array(Float64, stageNum, stageNum)
 
-    # Construct matrix A_meta 
+    # Construct matrix A_meta
     A_meta = Array(Float64, stageNum, stageNum)
     for i = 1:stageNum
         for j = 1:stageNum
@@ -286,4 +343,9 @@ function constRadauTableau(stageNum)
     end
 
     return TableauRKImplicit(order, A, B, C)
+end
+
+" Calculates the array of derivative values between t and tnext"
+function F(f,z,y,t,c,h)
+    return [f(t+c[i]*h, y+z[i]) for i=1:length(z)]
 end
