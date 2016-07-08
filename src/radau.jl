@@ -161,47 +161,19 @@ function trialstep!(st)
     #    |_                                             _|
     #
     g(z) = f(t,z)
+
     J = ForwardDiff.jacobian(g, y)
-    I = eye(stageNum,stageNum)
-
-    #AoplusJ = [btab.a[i,j]*J for i=1:stageNum, j=1:stageNum]
-    AoplusJ=zeros(stageNum*dof,stageNum*dof)
-    for i=1:stageNum
-        for j = 1:stageNum
-            for l = 1:dof
-                for k = 1:dof
-                    AoplusJ[(i-1)*stageNum+l,(j-1)*stageNum+k] =btab.a[i,j]*J[l,k]
-                end
-            end
-        end
-    end
-
-    AoplusI = [btab.a[i,j]*I for i=1:stageNum, j=1:stageNum]
-    AoplusI2=zeros(stageNum*dof,stageNum*dof)
-    for i=1:stageNum
-        for j = 1:stageNum
-            for l = 1:dof
-                for k = 1:dof
-                    AoplusI2[(i-1)*stageNum+l,(j-1)*stageNum+k] =btab.a[i,j]*I[l,k]
-                end
-            end
-        end
-    end
-
-    #IoplusM = [I[i,j]*M for i=1:stageNum, j=1:stageNum]
-    IoplusM=zeros(stageNum*dof,stageNum*dof)
-    for i=1:stageNum
-        for j = 1:stageNum
-            for l = 1:dof
-                for k = 1:dof
-                    IoplusM[(i-1)*stageNum+l,(j-1)*stageNum+k] =I[i,j]*M[l,k]
-                end
-            end
-        end
-    end
+    I_N = eye(dof,dof)
+    I_s = eye(stageNum,stageNum)
+    M = rand(dof,dof)
+    AoplusJ = kron(btab.a,J)
+    IoplusM = kron(I_s,M)
 
     G =  IoplusM-h*AoplusJ
     Ginv = inv(G)
+
+    Ginv_block = Array{Float64,2}[Ginv[i*stageNum + [1:dof], j*stageNum+[1:dof]] for i = 0:stageNum-1, j= 0:stageNum-1]
+    AoplusI_block = Array{Float64,2}[btab.a[i,j]*I_N for i=1:stageNum, j=1:stageNum]
 
     # Use Netwon interation
     #
@@ -210,15 +182,17 @@ function trialstep!(st)
     ## initial variables iteration
     #TODO: use better initial values for zpre
     #w = hnew/hpre
-    #zpre = q(w)+ypre-y
-    zpre = zeros(dof)
-    Δzpre
+
+    z = zeros(dof)
+    zpre = z
+    Δzpre = z
+    Δz = z
     κ
 
     iterate = true
     count = 0
     while iterate
-        Δz = reshape(Ginv*[(-zpre + h*AoplusI2*F(f,z,y,t,c,h))...],dof,stageNum)
+        Δz = Ginv_block*(-zpre + h*AoplusI_block*F(f,z,y,t,c,h))
         z = zpre + Δz
 
         # Stop condition for the Netwon iteration
@@ -242,7 +216,7 @@ function trialstep!(st)
     #   y = ypre + h ∑b_i*k_i^{m}
     #
 
-    d = b*inv(A)
+    d = inv(btab.a)*btab.b
     ynext = ypre
     for i = 1 : stageNum
         ynext += z[i]*d[i]
@@ -329,7 +303,7 @@ function constRadauTableau(stageNum)
     #    s
     #   ___
     #   \                    cᵢ^m
-    #   /   aₐⱼcᵢ^(m - 1) = -------     m = 1, ..., s   
+    #   /   aₐⱼcᵢ^(m - 1) = -------     m = 1, ..., s
     #   ---                    m    ,   j = 1, ..., s
     #   j=1
     #
@@ -354,5 +328,5 @@ end
 
 " Calculates the array of derivative values between t and tnext"
 function F(f,z,y,t,c,h)
-    return [f(t+c[i]*h, y+z[i]) for i=1:length(z)]
+    return Array{Float64,1}[f(t+c[i]*h, y+z[i]) for i=1:stageNum]
 end
