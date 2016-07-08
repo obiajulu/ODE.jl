@@ -12,8 +12,11 @@
 ###########################################
 using Polynomials
 using ForwardDiff
+using ODE
+using Parameters
 
-immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
+
+immutable TableauRKImplicit{Name, S, T} <: ODE.Tableau{Name, S, T}
     order::Integer # the order of the method
     a::Matrix{T}
     # one or several row vectors.  First row is used for the step,
@@ -23,10 +26,8 @@ immutable TableauRKImplicit{Name, S, T} <: Tableau{Name, S, T}
     function TableauRKImplicit(order,a,b,c)
         @assert isa(S,Integer)
         @assert isa(Name,Symbol)
-        @assert c[1]==0
-        @assert istril(a)
-        @assert S==length(c)==size(a,1)==size(a,2)==size(b,2)
-        @assert size(b,1)==length(order)
+        @assert S==length(c)==length(b)
+        @assert length(b)==(order+1)/2
         @assert norm(sum(a,2)-c'',Inf)<1e-10 # consistency.
         new(order,a,b,c)
     end
@@ -61,6 +62,10 @@ const bt_radau5 = TableauRKImplicit(:radau5,5, Rational{Int64},
 # State for Radau Solver
 ###########################################
 type RadauState{T,Y}
+    tfinal ::T
+    tdir :: Integer
+    minstep ::Float64
+
     h::T     # (proposed) next time step
 
     t::T      # current time
@@ -74,7 +79,9 @@ type RadauState{T,Y}
     step::Int # current step number
     finished::Bool # true if last step was taken
 
-    btab::TableauRKImplicit # tableau according to stage number
+    btab #<:TableauRKImplicit # tableau according to stage number
+    stageNum ::Integer
+    M ::Array{Float64,2}
 
     # work arrays
 end
@@ -82,46 +89,55 @@ end
 ###########################################
 # Radau Solver
 ###########################################
-function ode_radau(f, y0, tspan, stageNum ::Integer = 5)
+function ode_radau(f, y0, tspan, order ::Integer = 5;   M = eye(length(y0),length(y0)),
+                                                        minstep = abs(tspan[length(tspan)]-tspan[1])/10^12
+                                                        )
     # Set up
+    stageNum = Integer((order+1)/2)
     T = eltype(tspan)
     Y = typeof(y0)
     EY = eltype(Y)
-    N = length(tsteps)
     dof = length(y0)
-    h = hinit
-    t = ode.tspan[1]
+
+    # TODO: h = hinit()
+    tfinal = tspan[length(tspan)]
+    tdir = sign(tfinal - tspan[1])
+    h = .01
+    t = tspan[1]
     y = deepcopy(y0)
     dy = f(t, y)
-    # get right tableau for stage number
-    if stageNum ==3
-        btab = bt_radau3
-    elseif stageNum ==5
-        btab = bt_radau5
-    elseif stageNum == 9
-        btab = bt_radau9
-    else
-        btab = constRadauTableau(stageNum)
-    end
 
     ## previous data set to null to begin
     tpre = NaN
     ypre = zeros(y0)
     dypre = zeros(y0)
+
     step = 1
-    stageNum = stageNum
     finished = false
 
+    stageNum = stageNum
+    # get right tableau for stage number
+    if stageNum ==3
+        btab = bt_radau3
+    elseif stageNum ==5
+        btab = bt_radau5
+    else
+        @show typeof(stageNum)
+        @show constRadauTableau(stageNum)
+        btab = constRadauTableau(stageNum)
+    end
 
+    @show typeof(tfinal)
     ## intialize state
-    st =  RadauState{T,Y}(h,
+    st =  RadauState{T,Y}(tfinal,tdir, minstep,h,
                    t, y, dy,
                    tpre, ypre, dypre,
                    step, finished,
-                   btab)
+                   btab, stageNum, M)
 
+    println("Good so far!")
     # Time stepping loop
-    while !done()
+    while !done_radau(st)
         stats = trialstep!(st)
         err, stats, st = errorcontrol!(st) # (1) adaptive stepsize (2) error
         if err < 1
@@ -131,17 +147,38 @@ function ode_radau(f, y0, tspan, stageNum ::Integer = 5)
             rollback!()
         end
 
-        return = status()
+        return status()
     end
 end
 
+
+ function f(t, y)
+     # Extract the components of the y vector
+     (x, v) = y
+
+     # Our system of differential equations
+     x_prime = v
+     v_prime = -x
+
+     # Return the derivatives as a vector
+     [x_prime; v_prime]
+ end
+
+
+ # Initial condtions -- x(0) and x'(0)
+ y = [0.0; 0.1]
+
+ # Time vector going from 0 to 2*PI in 0.01 increments
+ t = 0:0.1:4*pi;
+
+ode_radau(f,y,t,7)
 ###########################################
 # iterator like helper functions
 ###########################################
 
-function done(st)
-    @unpack st: h, t, tfinal
-    if h < minstep || t = tfinal
+function done_radau(st)
+    @unpack st: h, t, tfinal, minstep, tdir
+    if h < minstep || tdir*t >= tdir*tfinal
         return true
     else
         return false
@@ -150,50 +187,49 @@ end
 
 "trial step for ODE with mass matrix"
 function trialstep!(st)
-    @unpack st: h, t,y, tfinal
+    @unpack st: h, t,y, tfinal, btab
 
+    # Form ⃗z from y
 
-    # Calculate simplified Jacobian if My' = f(t,y)
+    # Calculate  Jacobian
+    g(z) = f(t,z)
+    J = ForwardDiff.jacobian(g, y)
+
+    # Use to form simplied Netwon iteration matrix
     #     _                                             _
     #    |M - h*a[11]*h*f(tn,yn) ... -h*a[1s]*f(tn,yn)   |
     # G= |         ⋮              ⋱           ⋮           |
     #    | - h*a[1s]*h*f(tn,yn) ...   M-h*a[ss]*f(tn,yn) |
     #    |_                                             _|
     #
-    g(z) = f(t,z)
-
-    J = ForwardDiff.jacobian(g, y)
     I_N = eye(dof,dof)
     I_s = eye(stageNum,stageNum)
     M = rand(dof,dof)
     AoplusJ = kron(btab.a,J)
     IoplusM = kron(I_s,M)
-
     G =  IoplusM-h*AoplusJ
-    Ginv = inv(G)
 
+    # Use Netwon interation (TODO: use the transformation T^(-1)A^(-1)T = Λ,
+    # W^k = (T^-1 ⊕ I)Z^k version of iteration)
+
+    ## initial variables iteration
+    ## Initialize
+    z = zeros(dof)     #TODO: use better initial values for z
+    zpre = zeros(dof)
+    Δzpre = zeros(dof)
+    Δz = zeros(dof)
+    κ
+
+    ## Matrices used for one round of iteration
+    Ginv = inv(G)
     Ginv_block = Array{Float64,2}[Ginv[i*stageNum + [1:dof], j*stageNum+[1:dof]] for i = 0:stageNum-1, j= 0:stageNum-1]
     AoplusI_block = Array{Float64,2}[btab.a[i,j]*I_N for i=1:stageNum, j=1:stageNum]
-
-    # Use Netwon interation
-    #
-    #   ⃗z^(k+1) = ⃗z ^ (k) - Δ⃗z^(k)
-    #TODO: use the transformation T^(-1)A^(-1)T = Λ, W^k = (T^-1 ⊕ I)Z^k
-    ## initial variables iteration
-    #TODO: use better initial values for zpre
-    #w = hnew/hpre
-
-    z = zeros(dof)
-    zpre = z
-    Δzpre = z
-    Δz = z
-    κ
 
     iterate = true
     count = 0
     while iterate
         Δz = Ginv_block*(-zpre + h*AoplusI_block*F(f,z,y,t,c,h))
-        z = zpre + Δz
+        z = zpre + Δz  #   ⃗z^(k+1) = ⃗z ^ (k) - Δ⃗z^(k)
 
         # Stop condition for the Netwon iteration
         if (count >=1)
@@ -215,7 +251,6 @@ function trialstep!(st)
     #
     #   y = ypre + h ∑b_i*k_i^{m}
     #
-
     d = inv(btab.a)*btab.b
     ynext = ypre
     for i = 1 : stageNum
@@ -298,7 +333,6 @@ function constRadauTableau(stageNum)
     # Calculate b_i
     C_big = inv( C_meta )
     B = C_big * B_meta
-
     ################# Calculate a_ij ################
     #    s
     #   ___
@@ -322,9 +356,10 @@ function constRadauTableau(stageNum)
     for i = 1:stageNum
         A[i,:] = C_big * A_meta[:,i]
     end
-
-    return TableauRKImplicit(2*stageNum-1, A, B, C)
+    order = 2*stageNum-1
+    return TableauRKImplicit(symbol("radau$(order)"),order, A, B, C)
 end
+
 
 " Calculates the array of derivative values between t and tnext"
 function F(f,z,y,t,c,h)
