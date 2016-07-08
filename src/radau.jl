@@ -50,23 +50,11 @@ const bt_radau3 = TableauRKImplicit(:radau3,3, Rational{Int64},
                                   [1//3, 1])
 
 const bt_radau5 = TableauRKImplicit(:radau5,5, Rational{Int64},
-<<<<<<< db9a8f3cf03d6172a5469630990fcce8a2f96265
-                                [11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75
-                                11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75
-                                11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75]',
-                                [2//5- sqrt(6)/10, 1])
-=======
-                                  [0  0
-                                   1  0],
-                                  [1//2, 1//2]',
-                                  [0, 1])
->>>>>>> Add some documents
-
-const bt_radau9 = TableauRKImplicit(:radau9,9, Rational{Int64},
-                                [0  0
-                                 1  0],
-                                [1//2, 1//2]',
-                                [0, 1])
+                                [11/45-7*√(6)/360       37/225-169*√(6)/1800    -2/225 + √(6)/75
+                                 37/225+169*√(6)/1800   11/45+7*√(6)/360        -2/225 - √(6)/75
+                                 4/9-√(6)/36            4/9+√(6)/36             1/9             ],
+                                [4/9-√(6)/36            4/9+√(6)/36             1/9             ]',
+                                [2/5-√(6)/10,           2/5+√(6)/10,            1               ])
 
 
 ###########################################
@@ -305,7 +293,7 @@ function constRadauTableau(stageNum)
     #           ---    (x    * (x-1)  )
     #              s-1
     #           dx
-    roots = Array(Float64, stageNum - 1)
+    roots = zeros(Float64, stageNum - 1)
     append!(roots, [1 for i= 1:stageNum])
     poly = Polynomials.poly([roots;])
     for i = 1 : stageNum-1
@@ -361,11 +349,10 @@ function constRadauTableau(stageNum)
         A[i,:] = C_big * A_meta[:,i]
     end
 
-    return TableauRKImplicit(order, A, B, C)
+    return TableauRKImplicit(2*stageNum-1, A, B, C)
 end
 
 " Calculates the array of derivative values between t and tnext"
 function F(f,z,y,t,c,h)
     return [f(t+c[i]*h, y+z[i]) for i=1:length(z)]
 end
-=======
