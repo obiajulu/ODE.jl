@@ -50,10 +50,17 @@ const bt_radau3 = TableauRKImplicit(:radau3,3, Rational{Int64},
                                   [1//3, 1])
 
 const bt_radau5 = TableauRKImplicit(:radau5,5, Rational{Int64},
+<<<<<<< db9a8f3cf03d6172a5469630990fcce8a2f96265
                                 [11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75
                                 11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75
                                 11/45 - 4*sqrt(6)/360  37/225 - 169*sqrt(6)/1800  -2/225 + sqrt(6)/75]',
                                 [2//5- sqrt(6)/10, 1])
+=======
+                                  [0  0
+                                   1  0],
+                                  [1//2, 1//2]',
+                                  [0, 1])
+>>>>>>> Add some documents
 
 const bt_radau9 = TableauRKImplicit(:radau9,9, Rational{Int64},
                                 [0  0
@@ -307,7 +314,13 @@ function constRadauTableau(stageNum)
     C = Polynomials.roots(poly)
 
     ################# Calculate b_i #################
-
+    #    s
+    #   ___
+    #   \                   1
+    #   /   bᵢcᵢ^(m - 1) = ---      m = 1, ..., s
+    #   ---                 m  ,
+    #   i=1
+    #
     # Construct a matrix C_meta to calculate B
     C_meta = Array(Float64, stageNum, stageNum)
     for i = 1:stageNum
@@ -325,7 +338,13 @@ function constRadauTableau(stageNum)
     B = C_big * B_meta
 
     ################# Calculate a_ij ################
-
+    #    s
+    #   ___
+    #   \                    cᵢ^m
+    #   /   aₐⱼcᵢ^(m - 1) = -------     m = 1, ..., s   
+    #   ---                    m    ,   j = 1, ..., s
+    #   j=1
+    #
     # Construct matrix A
     A = Array(Float64, stageNum, stageNum)
 
@@ -349,3 +368,4 @@ end
 function F(f,z,y,t,c,h)
     return [f(t+c[i]*h, y+z[i]) for i=1:length(z)]
 end
+=======
