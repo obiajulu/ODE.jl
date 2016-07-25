@@ -221,8 +221,8 @@ function trialstep!(st)
 
     ## Matrices used for one round of iteration
     Ginv = inv(G)
-    @compat Ginv_block = Array{Float64,2}[Ginv[i*dof + [1:dof], j*dof+[1:dof]] for i = 0:stageNum-1, j= 0:stageNum-1]
-    @compat AoplusI_block = Array{Float64,2}[btab.a[i,j]*I_N for i=1:stageNum, j=1:stageNum]
+    Ginv_block = Array{Float64,2}[Ginv[i*dof + [1:dof;], j*dof+[1:dof;]] for i = 0:stageNum-1, j= 0:stageNum-1]
+    AoplusI_block = Array{Float64,2}[btab.a[i,j]*I_N for i=1:stageNum, j=1:stageNum]
 
     iterate = true
     count = 0
